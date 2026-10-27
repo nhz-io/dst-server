@@ -72,8 +72,8 @@ jobs:
           # steamclient.so for ~/.steam/sdk*, see the Dockerfile for why it
           # is load-bearing (player save-folder naming).
           ./dd/DepotDownloader -app 1007 -os linux -dir sdk
-          ls -la sdk sdk/linux64 sdk/linux32
-          test -f sdk/linux64/steamclient.so && test -f sdk/linux32/steamclient.so
+          ls -la sdk sdk/linux64
+          test -f sdk/linux64/steamclient.so && test -f sdk/steamclient.so  # 32-bit lives at the root
 
       - name: Bin-pack game tree into ten layer buckets
         if: steps.check.outputs.exists == 'false'

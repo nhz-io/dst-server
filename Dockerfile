@@ -33,7 +33,7 @@ RUN apt-get update \
     && dpkg-reconfigure --frontend=noninteractive locales \
     && useradd -u 1000 -m "${USER}" \
     && rm -rf /var/lib/apt/lists/*
-COPY --chown=steam:steam sdk/linux32/steamclient.so /home/steam/.steam/sdk32/steamclient.so
+COPY --chown=steam:steam sdk/steamclient.so /home/steam/.steam/sdk32/steamclient.so
 COPY --chown=steam:steam sdk/linux64/steamclient.so /home/steam/.steam/sdk64/steamclient.so
 RUN ln -s /home/steam/.steam/sdk64/steamclient.so /usr/lib/x86_64-linux-gnu/steamclient.so
 
