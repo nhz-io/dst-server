@@ -61,6 +61,41 @@ jobs:
           # Dockerfile chmods the entrypoint itself.
           test -f game/bin64/dontstarve_dedicated_server_nullrenderer_x64
 
+      - name: Bin-pack game tree into ten layer buckets
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          # Split game/ into parts/part0..part9, size-balanced. One docker
+          # layer per bucket keeps every registry blob small — a single ~3 GB
+          # blob was observed failing with `tls: bad record MAC` on the
+          # consuming network, while small blobs pass. Entries are moved at
+          # depth 2 (game/data/* etc.) so no single entry dominates a bucket.
+          python3 - <<'PY'
+          import os, shutil
+          def du(p):
+              if os.path.isfile(p): return os.path.getsize(p)
+              return sum(os.path.getsize(os.path.join(r, f))
+                         for r, _, fs in os.walk(p) for f in fs)
+          entries = []
+          for top in sorted(os.listdir("game")):
+              t = os.path.join("game", top)
+              if os.path.isdir(t):
+                  for sub in sorted(os.listdir(t)):
+                      entries.append(os.path.join(t, sub))
+              else:
+                  entries.append(t)
+          buckets = [[0, i, []] for i in range(10)]
+          for e in sorted(entries, key=du, reverse=True):
+              b = min(buckets)
+              b[0] += du(e); b[2].append(e)
+          for size, i, items in buckets:
+              os.makedirs(f"parts/part{i}", exist_ok=True)
+              for e in items:
+                  dest = os.path.join(f"parts/part{i}", os.path.relpath(e, "game"))
+                  os.makedirs(os.path.dirname(dest), exist_ok=True)
+                  shutil.move(e, dest)
+              print(f"part{i}: {size/1e6:.0f} MB, {len(items)} entries")
+          PY
+
       - name: Login to ghcr
         if: steps.check.outputs.exists == 'false'
         uses: docker/login-action@v3

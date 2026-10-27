@@ -24,7 +24,22 @@ ENV DST_VERSION=${DST_VERSION}
 LABEL org.opencontainers.image.source="https://github.com/nhz-io/dst-server"
 LABEL dst.version="${DST_VERSION}"
 
-COPY --chown=steam:steam game/ /home/steam/dst/game/
+# The game tree arrives pre-split into ten size-balanced buckets (see the
+# workflow's bin-pack step). One COPY per bucket = one moderate blob per
+# layer instead of a single ~3 GB blob — long single-blob transfers from
+# ghcr's CDN were observed dying with `tls: bad record MAC` on the consuming
+# LAN, and small blobs pass the same path untouched. Buckets always exist
+# (CI creates all ten, empty ones included), and they merge in overlayfs.
+COPY --chown=steam:steam parts/part0/ /home/steam/dst/game/
+COPY --chown=steam:steam parts/part1/ /home/steam/dst/game/
+COPY --chown=steam:steam parts/part2/ /home/steam/dst/game/
+COPY --chown=steam:steam parts/part3/ /home/steam/dst/game/
+COPY --chown=steam:steam parts/part4/ /home/steam/dst/game/
+COPY --chown=steam:steam parts/part5/ /home/steam/dst/game/
+COPY --chown=steam:steam parts/part6/ /home/steam/dst/game/
+COPY --chown=steam:steam parts/part7/ /home/steam/dst/game/
+COPY --chown=steam:steam parts/part8/ /home/steam/dst/game/
+COPY --chown=steam:steam parts/part9/ /home/steam/dst/game/
 
 USER steam
 WORKDIR /home/steam/dst/game/bin64
