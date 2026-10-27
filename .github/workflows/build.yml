@@ -75,18 +75,23 @@ jobs:
               if os.path.isfile(p): return os.path.getsize(p)
               return sum(os.path.getsize(os.path.join(r, f))
                          for r, _, fs in os.walk(p) for f in fs)
-          entries = []
-          for top in sorted(os.listdir("game")):
-              t = os.path.join("game", top)
-              if os.path.isdir(t):
-                  for sub in sorted(os.listdir(t)):
-                      entries.append(os.path.join(t, sub))
+          # Recurse into any directory bigger than THRESHOLD so no single
+          # entry dominates a bucket (data/sound alone is ~1.6 GB; its
+          # individual sound banks are <300 MB).
+          THRESHOLD = 300 * 1024 * 1024
+          def collect(p):
+              if os.path.isfile(p) or du(p) <= THRESHOLD:
+                  yield p
               else:
-                  entries.append(t)
+                  for c in sorted(os.listdir(p)):
+                      yield from collect(os.path.join(p, c))
+          entries = [e for top in sorted(os.listdir("game"))
+                       for e in collect(os.path.join("game", top))]
           buckets = [[0, i, []] for i in range(10)]
-          for e in sorted(entries, key=du, reverse=True):
+          sized = sorted(((du(e), e) for e in entries), reverse=True)
+          for size, e in sized:
               b = min(buckets)
-              b[0] += du(e); b[2].append(e)
+              b[0] += size; b[2].append(e)
           for size, i, items in buckets:
               os.makedirs(f"parts/part{i}", exist_ok=True)
               for e in items:
