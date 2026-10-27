@@ -1,7 +1,8 @@
 name: Build DST server image
 
 # Polls Steam for a new Don't Starve Together dedicated server build and
-# publishes ghcr.io/nhz-io/dst-server:<version> + :latest when one appears.
+# publishes ghcr.io/nhz-io/dst-server:<version>-<recipe> + :<version> + :latest
+# when either the game or the Dockerfile changes.
 # The version probe downloads ONLY version.txt (7 bytes), so the schedule is
 # cheap; the full 4.3 GB fetch happens only on an actual new release.
 on:
@@ -41,16 +42,20 @@ jobs:
           test -n "$VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "DST server version on Steam: $VERSION"
+          # The recipe is part of the identity: a Dockerfile change must
+          # rebuild even when Klei has not shipped (2026-10-27: the runtime
+          # fix had to republish 760178). Tag :<version>-<recipe hash>.
+          echo "tag=$VERSION-$(sha256sum Dockerfile | cut -c1-8)" >> "$GITHUB_OUTPUT"
 
       - name: Check whether this version is already published
         id: check
         run: |
           TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:nhz-io/dst-server:pull" | jq -r .token)
           CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOKEN" \
-            "https://ghcr.io/v2/nhz-io/dst-server/manifests/${{ steps.probe.outputs.version }}" \
+            "https://ghcr.io/v2/nhz-io/dst-server/manifests/${{ steps.probe.outputs.tag }}" \
             -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.v2+json")
           echo "exists=$([ "$CODE" = 200 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "manifest check for ${{ steps.probe.outputs.version }}: HTTP $CODE"
+          echo "manifest check for ${{ steps.probe.outputs.tag }}: HTTP $CODE"
 
       - name: Download full game
         if: steps.check.outputs.exists == 'false'
@@ -113,6 +118,8 @@ jobs:
         if: steps.check.outputs.exists == 'false'
         run: |
           V=${{ steps.probe.outputs.version }}
-          docker build --build-arg DST_VERSION=$V -t $IMAGE:$V -t $IMAGE:latest .
+          T=${{ steps.probe.outputs.tag }}
+          docker build --build-arg DST_VERSION=$V -t $IMAGE:$T -t $IMAGE:$V -t $IMAGE:latest .
+          docker push $IMAGE:$T
           docker push $IMAGE:$V
           docker push $IMAGE:latest
