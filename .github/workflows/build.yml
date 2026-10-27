@@ -57,7 +57,9 @@ jobs:
         run: |
           ./dd/DepotDownloader -app 343050 -os linux -dir game -validate
           rm -rf game/.DepotDownloader
-          test -x game/bin64/dontstarve_dedicated_server_nullrenderer_x64
+          # -f, not -x: DepotDownloader does not set the executable bit; the
+          # Dockerfile chmods the entrypoint itself.
+          test -f game/bin64/dontstarve_dedicated_server_nullrenderer_x64
 
       - name: Login to ghcr
         if: steps.check.outputs.exists == 'false'
