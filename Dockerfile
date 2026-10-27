@@ -18,12 +18,12 @@ FROM debian:trixie-slim
 # fetched by DepotDownloader in CI into sdk/ — steamcmd's self-update cannot
 # reach Steam from GitHub's runners ("Steamcmd needs to be online").
 #
-# Mirrors superjump22's runtime so the two images behave alike. NOTE what it
-# did NOT fix (2026-10-27): after switching to this image returning players
-# spawned naked with a blank map. That was the server choosing
-# `encode_user_path` itself (hashed vs raw player save folders) when
-# cluster.ini does not set it; consumers must pin `[ACCOUNT]
-# encode_user_path = true` (the shinsenkyo Deployment does). Not this file.
+# Mirrors superjump22's runtime for parity. It did NOT fix the 2026-10-27
+# naked-respawn problem: this image files characters under raw
+# session/<id>/OU_<id>_ folders where superjump22's had auto-enabled hashed
+# C7GS… ones, and neither this runtime nor `[ACCOUNT] encode_user_path =
+# true` in cluster.ini changed that. Consumers moving a save between images
+# must check a test join resumes an existing character folder.
 ENV USER=steam HOMEDIR=/home/steam
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
