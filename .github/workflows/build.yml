@@ -66,6 +66,15 @@ jobs:
           # Dockerfile chmods the entrypoint itself.
           test -f game/bin64/dontstarve_dedicated_server_nullrenderer_x64
 
+      - name: Download Steam client runtime (Steamworks SDK Redist)
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          # steamclient.so for ~/.steam/sdk*, see the Dockerfile for why it
+          # is load-bearing (player save-folder naming).
+          ./dd/DepotDownloader -app 1007 -os linux -dir sdk
+          ls -la sdk sdk/linux64 sdk/linux32
+          test -f sdk/linux64/steamclient.so && test -f sdk/linux32/steamclient.so
+
       - name: Bin-pack game tree into ten layer buckets
         if: steps.check.outputs.exists == 'false'
         run: |

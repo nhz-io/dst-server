@@ -12,10 +12,11 @@
 # Saves/config/mods are mounted by the consumer via -persistent_storage_root.
 FROM debian:trixie-slim
 
-# The Steam runtime, reproduced from cm2network/steamcmd (superjump22's base):
-# 32-bit libs, steamcmd self-updated once, and Steam's REAL steamclient.so
-# linked into ~/.steam/sdk32|sdk64 and /usr/lib. steamcmd is never used to
-# fetch the game (see above) — it is here only for the client libraries.
+# The Steam runtime superjump22 (cm2network/steamcmd) runs on: 32-bit libs,
+# locales, and Steam's REAL steamclient.so in ~/.steam/sdk32|sdk64 and
+# /usr/lib. The libraries come from the Steamworks SDK Redist (app 1007),
+# fetched by DepotDownloader in CI into sdk/ — steamcmd's self-update cannot
+# reach Steam from GitHub's runners ("Steamcmd needs to be online").
 #
 # ⚠️ NOT OPTIONAL. The first version of this image shipped only the
 # steamclient.so bundled with the game, and every returning player spawned
@@ -24,27 +25,17 @@ FROM debian:trixie-slim
 # instead of the hashed `C7GS…` one the existing saves use — same build,
 # same args, same save (2026-10-27). Any change here: verify a test join logs
 # `Resuming user: session/<id>/C7GS…` BEFORE players return.
-ENV USER=steam HOMEDIR=/home/steam STEAMCMDDIR=/home/steam/steamcmd
+ENV USER=steam HOMEDIR=/home/steam
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        lib32stdc++6 lib32gcc-s1 ca-certificates curl locales \
+        lib32stdc++6 lib32gcc-s1 ca-certificates locales \
     && sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
     && dpkg-reconfigure --frontend=noninteractive locales \
     && useradd -u 1000 -m "${USER}" \
-    && su "${USER}" -c \
-        "mkdir -p \"${STEAMCMDDIR}\" \
-         && curl -fsSL 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz' | tar xzf - -C \"${STEAMCMDDIR}\" \
-         && \"${STEAMCMDDIR}/steamcmd.sh\" +quit \
-         && ln -s \"${STEAMCMDDIR}/linux32/steamclient.so\" \"${STEAMCMDDIR}/steamservice.so\" \
-         && mkdir -p \"${HOMEDIR}/.steam/sdk32\" \"${HOMEDIR}/.steam/sdk64\" \
-         && ln -s \"${STEAMCMDDIR}/linux32/steamclient.so\" \"${HOMEDIR}/.steam/sdk32/steamclient.so\" \
-         && ln -s \"${STEAMCMDDIR}/linux32/steamcmd\" \"${STEAMCMDDIR}/linux32/steam\" \
-         && ln -s \"${STEAMCMDDIR}/linux64/steamclient.so\" \"${HOMEDIR}/.steam/sdk64/steamclient.so\" \
-         && ln -s \"${STEAMCMDDIR}/linux64/steamcmd\" \"${STEAMCMDDIR}/linux64/steam\" \
-         && ln -s \"${STEAMCMDDIR}/steamcmd.sh\" \"${STEAMCMDDIR}/steam.sh\"" \
-    && ln -s "${STEAMCMDDIR}/linux64/steamclient.so" /usr/lib/x86_64-linux-gnu/steamclient.so \
-    && test -f "${HOMEDIR}/.steam/sdk64/steamclient.so" \
     && rm -rf /var/lib/apt/lists/*
+COPY --chown=steam:steam sdk/linux32/steamclient.so /home/steam/.steam/sdk32/steamclient.so
+COPY --chown=steam:steam sdk/linux64/steamclient.so /home/steam/.steam/sdk64/steamclient.so
+RUN ln -s /home/steam/.steam/sdk64/steamclient.so /usr/lib/x86_64-linux-gnu/steamclient.so
 
 # What superjump22 adds on top of that base, verbatim in effect.
 RUN dpkg --add-architecture i386 \
