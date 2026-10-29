@@ -21,8 +21,9 @@ FROM debian:trixie-slim
 # Mirrors superjump22's runtime for parity. It did NOT fix the 2026-10-27
 # naked-respawn problem: this image files characters under raw
 # session/<id>/OU_<id>_ folders where superjump22's had auto-enabled hashed
-# C7GS… ones, and neither this runtime nor `[ACCOUNT] encode_user_path =
-# true` in cluster.ini changed that. Consumers moving a save between images
+# C7GS… ones; `[ACCOUNT] encode_user_path = true` makes this build do the
+# same, but it must be in EACH SHARD's server.ini — in cluster.ini it is
+# ignored (that was the 2026-10-27 mistake). Consumers moving a save between images
 # must check a test join resumes an existing character folder.
 ENV USER=steam HOMEDIR=/home/steam
 RUN apt-get update \
